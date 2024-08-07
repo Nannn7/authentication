@@ -14,6 +14,11 @@ use Modules\Authentication\Http\Controllers\AuthenticationController;
 |
 */
 
-Route::group([], function () {
-    Route::resource('authentication', AuthenticationController::class)->names('authentication');
-});
+    Route::middleware('guest')->group(function () {
+        Route::get('login', [AuthenticationController::class, 'create'])->name('login');
+        Route::post('login', [AuthenticationController::class, 'store']);
+    });
+
+    Route::middleware('auth')->group(function () {
+        Route::get('logout', [AuthenticationController::class, 'destroy'])->name('logout');
+    });
