@@ -1,0 +1,30 @@
+{
+    "name": "daengdeni/authentication-module",
+    "description": "",
+    "authors": [
+        {
+            "name": "Daeng Deni Mardaeni",
+            "email": "ddeni05@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Authentication\\": "app/",
+            "Modules\\Authentication\\Database\\Factories\\": "database/factories/",
+            "Modules\\Authentication\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Authentication\\Tests\\": "tests/"
+        }
+    }
+}

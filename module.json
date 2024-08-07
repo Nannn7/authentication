@@ -1,0 +1,13 @@
+{
+    "name": "Authentication",
+    "alias": "authentication",
+    "database": "",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Authentication\\Providers\\AuthenticationServiceProvider"
+    ],
+    "files": [],
+    "menu": {}
+}
