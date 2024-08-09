@@ -12,14 +12,6 @@ use Modules\Authentication\Http\Requests\LoginRequest;
 class AuthenticationController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        return view('authentication::index');
-    }
-
-    /**
      * Show the form for creating a new resource.
      */
     public function create()
@@ -37,30 +29,6 @@ class AuthenticationController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended(('dashboard'));
-    }
-
-    /**
-     * Show the specified resource.
-     */
-    public function show($id)
-    {
-        return view('authentication::show');
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        return view('authentication::edit');
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id): RedirectResponse
-    {
-        //
     }
 
     /**

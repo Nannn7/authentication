@@ -21,23 +21,6 @@
                         <h3 class="text-lg font-semibold text-gray-900 leading-none mb-2.5">
                             Sign in
                         </h3>
-                        <div class="flex items-center justify-center font-medium">
-                            <span class="text-2sm text-gray-600 me-1.5">
-                                Need an account?
-                            </span>
-                            <a class="text-2sm link" href="">
-                                Sign up
-                            </a>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="border-t border-gray-200 w-full">
-                        </span>
-                        <span class="text-2xs text-gray-500 font-medium uppercase">
-                            Or
-                        </span>
-                        <span class="border-t border-gray-200 w-full">
-                        </span>
                     </div>
                     <div class="flex flex-col gap-1">
                         <label class="form-label text-gray-900">
@@ -53,9 +36,6 @@
                             <label class="form-label text-gray-900">
                                 Password
                             </label>
-                            <a class="text-2sm link shrink-0" href="">
-                                Forgot Password?
-                            </a>
                         </div>
                         <label class="input" data-toggle-password="true">
                             <input class="@error('password') border-danger @enderror" name="password" placeholder="Enter Password" type="password" value=""/>
