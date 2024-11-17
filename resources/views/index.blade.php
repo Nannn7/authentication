@@ -24,10 +24,10 @@
                     </div>
                     <div class="flex flex-col gap-1">
                         <label class="form-label text-gray-900">
-                            Email
+                            Email or NIK
                         </label>
-                        <input class="w-full input @error('email') border-danger @enderror" placeholder="email@email.com" type="email" name="email" value="">
-                        @error('email')
+                        <input class="w-full input @error('login') border-danger @enderror" placeholder="Enter your email or NIK" type="text" name="login" value="{{ old('login') }}">
+                        @error('login')
                         <em class="alert text-danger text-sm">{{ $message }}</em>
                         @enderror
                     </div>
