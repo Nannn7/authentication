@@ -8,6 +8,8 @@
     "providers": [
         "Modules\\Authentication\\Providers\\AuthenticationServiceProvider"
     ],
-    "files": [],
+    "files": [
+        "app/Helpers/uim.php"
+    ],
     "menu": {}
 }
