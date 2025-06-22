@@ -84,39 +84,35 @@
                     [$key, $val] = explode('=', $rval);
                     $userArray[0][$key] = $val;
                 }
-
-                session()->put($userArray[0]);
-
                 // Use the login value to find the user
                 $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
-                $user = User::where($loginField, $credentials['login'])->first();
 
-                $someValue = $userArray[0]['KD_CABANG']; // Example value containing the code
-                $lastFourDigits = substr($someValue, -4); // Gets the last 4 characters
+                $kodeCabang = $userArray[0]['KD_CABANG']; // Example value containing the code
+                $lastFourDigits = substr($kodeCabang, -4); // Gets the last 4 characters
                 $branch = Branch::where('code', 'LIKE', '%' . $lastFourDigits)->first();
 
+                session()->put($userArray[0]);
                 session()->put('branch_id',$branch->id);
 
-                if (!$user) {
-                    //get branch id by 4 digit terakhir 0029
-
-                    $user = User::create([
+                $user = User::updateOrCreate(
+                    [$loginField => $credentials['login']],
+                    [
                         'name'     => $userArray[0]['NAMA_USER'],
                         'email'    => $loginField === 'email' ? $credentials['login'] : null,
                         'nik'      => $loginField === 'nik' ? $credentials['login'] : null,
                         'password' => bcrypt($credentials['password']),
                         'branch_id' => $branch ? $branch->id : null,
-                    ]);
+                    ]
+                );
 
-                    switch ($userArray[0]['KD_GROUP']) {
-                        case '001':
-                            $user->assignRole('administrator');
-                            break;
-                        case '025':
-                            $user->assignRole('customer_service');
-                            break;
-                    }
-                }
+                // Assign role based on user group code
+                $role = match($userArray[0]['KD_GROUP']) {
+                    '001' => 'administrator',
+                    '025' => 'customer_service',
+                    default => 'user'
+                };
+
+                $user->syncRoles($role);
 
                 Auth::loginUsingId($user->id, true);
                 $this->session()->regenerate();
