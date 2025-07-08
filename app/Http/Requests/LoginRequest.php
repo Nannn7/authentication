@@ -4,7 +4,6 @@
 
     use Illuminate\Auth\Events\Lockout;
     use Illuminate\Foundation\Http\FormRequest;
-    use Illuminate\Http\Request;
     use Illuminate\Support\Facades\Auth;
     use Illuminate\Support\Facades\RateLimiter;
     use Illuminate\Support\Str;
@@ -108,8 +107,7 @@
                 // Assign role based on user group code
                 $role = match($userArray[0]['KD_GROUP']) {
                     '001' => 'administrator',
-                    '025' => 'customer_service',
-                    default => 'user'
+                    default => 'customer_service'
                 };
 
                 $user->syncRoles($role);

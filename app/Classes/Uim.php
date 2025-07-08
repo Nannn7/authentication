@@ -1,6 +1,7 @@
 <?php
-
     namespace Modules\Authentication\Classes;
+
+    use Exception;
 
     class Uim
     {
