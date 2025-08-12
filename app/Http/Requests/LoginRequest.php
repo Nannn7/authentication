@@ -27,6 +27,14 @@
             ];
         }
 
+        public function messages()
+        {
+            return [
+                'login.required'    => 'User tidak boleh kosong',
+                'password.required' => 'Password tidak boleh kosong',
+            ];
+        }
+
         /**
          * Attempt to authenticate the request's credentials.
          *
@@ -50,7 +58,7 @@
                 if (!Auth::attempt($authData, $this->boolean('remember'))) {
                     RateLimiter::hit($this->throttleKey());
                     throw ValidationException::withMessages([
-                        'login' => trans('auth.failed'),
+                        'login' => 'Email/NIK atau password tidak sesuai.'
                     ]);
                 }
 
@@ -121,7 +129,7 @@
             // Authentication failed
             RateLimiter::hit($this->throttleKey());
             throw ValidationException::withMessages([
-                'login' => trans('auth.failed'),
+                'login' => 'Email/NIK atau password tidak sesuai.',
             ]);
         }
 

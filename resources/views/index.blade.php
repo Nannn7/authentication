@@ -46,10 +46,10 @@
                                 <i class="ki-outline ki-eye toggle-password-active:hidden"></i>
                                 <i class="hidden ki-outline ki-eye-slash toggle-password-active:block"></i>
                             </div>
-                            @error('password')
-                                <em class="text-sm alert text-danger">{{ $message }}</em>
-                            @enderror
                         </label>
+                        @error('password')
+                            <em class="text-sm alert text-danger">{{ $message }}</em>
+                        @enderror
                     </div>
                     <label class="checkbox-group">
                         <input class="checkbox checkbox-sm" name="check" type="checkbox" value="1" />
