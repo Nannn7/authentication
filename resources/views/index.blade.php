@@ -3,11 +3,11 @@
 @push('styles')
     <style>
         .branded-bg {
-            background-image: url('assets/media/images/2600x1600/1.png');
+            background-image: url('assets/media/images/2600x1600/bg-3.png');
         }
 
         .dark .branded-bg {
-            background-image: url('assets/media/images/2600x1600/1-dark.png');
+            background-image: url('assets/media/images/2600x1600/bg-3-dark.png');
         }
     </style>
 @endpush
