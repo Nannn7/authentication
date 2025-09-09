@@ -99,7 +99,9 @@
                 $branch = Branch::where('code', 'LIKE', '%' . $lastFourDigits)->first();
 
                 session()->put($userArray[0]);
-                session()->put('branch_id',$branch->id);
+                if ($branch) {
+                    session()->put('branch_id', $branch->id);
+                }
 
                 $user = User::updateOrCreate(
                     [$loginField => $credentials['login']],
