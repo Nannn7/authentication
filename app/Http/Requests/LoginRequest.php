@@ -57,9 +57,17 @@
             } else {
                 if (!Auth::attempt($authData, $this->boolean('remember'))) {
                     RateLimiter::hit($this->throttleKey());
-                    throw ValidationException::withMessages([
-                        'login' => 'Email/NIK atau password tidak sesuai.'
-                    ]);
+                    $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
+                    $user = User::where($loginField, $credentials['login'])->first();
+
+                    $messages = [];
+                    if ($user) {
+                        $messages['password'] = 'Password tidak sesuai';
+                    } else {
+                        $messages['login'] = 'Email/NIK tidak ditemukan';
+                    }
+
+                    throw ValidationException::withMessages($messages);
                 }
 
                 RateLimiter::clear($this->throttleKey());
@@ -130,9 +138,17 @@
 
             // Authentication failed
             RateLimiter::hit($this->throttleKey());
-            throw ValidationException::withMessages([
-                'login' => 'Email/NIK atau password tidak sesuai.',
-            ]);
+            $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
+            $user = User::where($loginField, $credentials['login'])->first();
+
+            $messages = [];
+            if ($user) {
+                $messages['password'] = 'Password tidak sesuai';
+            } else {
+                $messages['login'] = 'Email/NIK tidak ditemukan';
+            }
+
+            throw ValidationException::withMessages($messages);
         }
 
         /**
