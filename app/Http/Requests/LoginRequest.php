@@ -1,190 +1,187 @@
 <?php
 
-    namespace Modules\Authentication\Http\Requests;
+namespace Modules\Authentication\Http\Requests;
 
-    use Illuminate\Auth\Events\Lockout;
-    use Illuminate\Foundation\Http\FormRequest;
-    use Illuminate\Support\Facades\Auth;
-    use Illuminate\Support\Facades\RateLimiter;
-    use Illuminate\Support\Str;
-    use Illuminate\Validation\ValidationException;
-    use Modules\Basicdata\Models\Branch;
-    use Modules\Usermanagement\Models\User;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Modules\Basicdata\Models\Branch;
+use Modules\Usermanagement\Models\User;
 
-    class LoginRequest extends FormRequest
+class LoginRequest extends FormRequest
+{
+    /**
+     * Returns an array of validation rules for the login form.
+     *
+     * @return array The validation rules.
+     */
+    public function rules(): array
     {
-        /**
-         * Returns an array of validation rules for the login form.
-         *
-         * @return array The validation rules.
-         */
-        public function rules()
-        : array
-        {
-            return [
-                'login'    => 'required',
-                'password' => 'required',
-            ];
-        }
+        return [
+            'login'    => 'required',
+            'password' => 'required',
+        ];
+    }
 
-        public function messages()
-        {
-            return [
-                'login.required'    => 'User tidak boleh kosong',
-                'password.required' => 'Password tidak boleh kosong',
-            ];
-        }
+    public function messages()
+    {
+        return [
+            'login.required'    => 'User tidak boleh kosong',
+            'password.required' => 'Password tidak boleh kosong',
+        ];
+    }
 
-        /**
-         * Attempt to authenticate the request's credentials.
-         *
-         * @return void
-         *
-         * @throws \Illuminate\Validation\ValidationException
-         */
-        public function authenticate(): void
-        {
-            $this->ensureIsNotRateLimited();
-            $credentials = $this->only('login', 'password');
-            $loginField  = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
-            $authData = [
-                $loginField => $credentials['login'],
-                'password'  => $credentials['password'],
-            ];
+    /**
+     * Attempt to authenticate the request's credentials.
+     *
+     * @return void
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function authenticate(): void
+    {
+        $this->ensureIsNotRateLimited();
+        $credentials = $this->only('login', 'password');
+        $loginField  = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
+        $authData = [
+            $loginField => $credentials['login'],
+            'password'  => $credentials['password'],
+        ];
 
-            if ($_ENV['METHOD_AUTH'] == 'uim') {
-                $this->userIdManagemeent($credentials);
-            } else {
-                if (!Auth::attempt($authData, $this->boolean('remember'))) {
-                    RateLimiter::hit($this->throttleKey());
-                    $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
-                    $user = User::where($loginField, $credentials['login'])->first();
-
-                    $messages = [];
-                    if ($user) {
-                        $messages['password'] = 'Password tidak sesuai';
-                    } else {
-                        $messages['login'] = 'Email/NIK tidak ditemukan';
-                    }
-
-                    throw ValidationException::withMessages($messages);
-                }
-
-                RateLimiter::clear($this->throttleKey());
-            }
-        }
-
-        /**
-         * Authenticate user through user manager
-         *
-         * @param array $credentials
-         * @return \Illuminate\Http\RedirectResponse
-         */
-        protected function userIdManagemeent($credentials)
-        {
-            $userArray       = [];
-            $id              = $credentials['login'];
-            $passwd          = $credentials['password'];
-            $SERVER_ADDR     = request()->ip();
-            $IPUserManager   = $_ENV['IP_USER_MANAGER'];
-            $portUserManager = $_ENV['PORT_USER_MANAGER'];
-            $appId           = $_ENV['APP_ID'];
-
-            $userData = verify_user($id, $passwd, $SERVER_ADDR, $IPUserManager, $portUserManager, $appId);
-
-            if (strlen($userData) > 1) {
-                $userRawArray = explode("\t", $userData);
-
-                foreach ($userRawArray as $rval) {
-                    [$key, $val] = explode('=', $rval);
-                    $userArray[0][$key] = $val;
-                }
-                // Use the login value to find the user
+        if ($_ENV['METHOD_AUTH'] == 'uim') {
+            $this->userIdManagemeent($credentials);
+        } else {
+            if (!Auth::attempt($authData, $this->boolean('remember'))) {
+                RateLimiter::hit($this->throttleKey());
                 $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
+                $user = User::where($loginField, $credentials['login'])->first();
 
-                $kodeCabang = $userArray[0]['KD_CABANG']; // Example value containing the code
-                $lastFourDigits = substr($kodeCabang, -4); // Gets the last 4 characters
-                $branch = Branch::where('code', 'LIKE', '%' . $lastFourDigits)->first();
-
-                session()->put($userArray[0]);
-                if ($branch) {
-                    session()->put('branch_id', $branch->id);
+                $messages = [];
+                if ($user) {
+                    $messages['password'] = 'Password tidak sesuai';
+                } else {
+                    $messages['login'] = 'Email/NIK tidak ditemukan';
                 }
 
-                $user = User::updateOrCreate(
-                    [$loginField => $credentials['login']],
-                    [
-                        'name'     => $userArray[0]['NAMA_USER'],
-                        'email'    => $loginField === 'email' ? $credentials['login'] : null,
-                        'nik'      => $loginField === 'nik' ? $credentials['login'] : null,
-                        'password' => bcrypt($credentials['password']),
-                        'branch_id' => $branch ? $branch->id : null,
-                    ]
-                );
-
-                // Assign role based on user group code
-                $role = match($userArray[0]['KD_GROUP']) {
-                    '001' => 'administrator',
-                    default => 'customer_service'
-                };
-
-                $user->syncRoles($role);
-
-                Auth::loginUsingId($user->id, true);
-                $this->session()->regenerate();
-
-                RateLimiter::clear($this->throttleKey());
+                throw ValidationException::withMessages($messages);
             }
 
-            // Authentication failed
-            RateLimiter::hit($this->throttleKey());
-            $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
-            $user = User::where($loginField, $credentials['login'])->first();
-
-            $messages = [];
-            if ($user) {
-                $messages['password'] = 'Password tidak sesuai';
-            } else {
-                $messages['login'] = 'Email/NIK tidak ditemukan';
-            }
-
-            throw ValidationException::withMessages($messages);
-        }
-
-        /**
-         * Ensure the login request is not rate limited.
-         *
-         * @return void
-         *
-         * @throws \Illuminate\Validation\ValidationException
-         */
-        public function ensureIsNotRateLimited()
-        : void
-        {
-            if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-                return;
-            }
-
-            event(new Lockout($this));
-
-            $seconds = RateLimiter::availableIn($this->throttleKey());
-
-            throw ValidationException::withMessages([
-                'email' => trans('auth.throttle', [
-                    'seconds' => $seconds,
-                    'minutes' => ceil($seconds / 60),
-                ]),
-            ]);
-        }
-
-        /**
-         * Get the rate limiting throttle key for the request.
-         *
-         * @return string
-         */
-        public function throttleKey()
-        : string
-        {
-            return Str::transliterate(Str::lower($this->input('email')) . '|' . $this->ip());
+            RateLimiter::clear($this->throttleKey());
         }
     }
+
+    /**
+     * Authenticate user through user manager
+     *
+     * @param array $credentials
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    protected function userIdManagemeent($credentials)
+    {
+        $userArray       = [];
+        $id              = $credentials['login'];
+        $passwd          = $credentials['password'];
+        $SERVER_ADDR     = request()->ip();
+        $IPUserManager   = $_ENV['IP_USER_MANAGER'];
+        $portUserManager = $_ENV['PORT_USER_MANAGER'];
+        $appId           = $_ENV['APP_ID'];
+
+        $userData = verify_user($id, $passwd, $SERVER_ADDR, $IPUserManager, $portUserManager, $appId);
+
+        if (strlen($userData) > 1) {
+            $userRawArray = explode("\t", $userData);
+
+            foreach ($userRawArray as $rval) {
+                [$key, $val] = explode('=', $rval);
+                $userArray[0][$key] = $val;
+            }
+            // Use the login value to find the user
+            $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
+
+            $kodeCabang = $userArray[0]['KD_CABANG']; // Example value containing the code
+            $lastFourDigits = substr($kodeCabang, -4); // Gets the last 4 characters
+            $branch = Branch::where('code', 'LIKE', '%' . $lastFourDigits)->first();
+
+            session()->put($userArray[0]);
+            if ($branch) {
+                session()->put('branch_id', $branch->id);
+            }
+
+            $user = User::updateOrCreate(
+                [$loginField => $credentials['login']],
+                [
+                    'name'     => $userArray[0]['NAMA_USER'],
+                    'email'    => $loginField === 'email' ? $credentials['login'] : null,
+                    'nik'      => $loginField === 'nik' ? $credentials['login'] : null,
+                    'password' => bcrypt($credentials['password']),
+                    'branch_id' => $branch ? $branch->id : null,
+                ]
+            );
+
+            // Assign role based on user group code
+            $role = match ($userArray[0]['KD_GROUP']) {
+                '001' => 'administrator',
+                default => 'customer_service'
+            };
+
+            $user->syncRoles($role);
+
+            Auth::loginUsingId($user->id, true);
+            $this->session()->regenerate();
+
+            RateLimiter::clear($this->throttleKey());
+        }
+
+        // Authentication failed
+        RateLimiter::hit($this->throttleKey());
+        $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
+        $user = User::where($loginField, $credentials['login'])->first();
+
+        $messages = [];
+        if ($user) {
+            $messages['password'] = 'Password tidak sesuai';
+        } else {
+            $messages['login'] = 'Email/NIK tidak ditemukan';
+        }
+
+        throw ValidationException::withMessages($messages);
+    }
+
+    /**
+     * Ensure the login request is not rate limited.
+     *
+     * @return void
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function ensureIsNotRateLimited(): void
+    {
+        if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+            return;
+        }
+
+        event(new Lockout($this));
+
+        $seconds = RateLimiter::availableIn($this->throttleKey());
+
+        throw ValidationException::withMessages([
+            'email' => trans('auth.throttle', [
+                'seconds' => $seconds,
+                'minutes' => ceil($seconds / 60),
+            ]),
+        ]);
+    }
+
+    /**
+     * Get the rate limiting throttle key for the request.
+     *
+     * @return string
+     */
+    public function throttleKey(): string
+    {
+        return Str::transliterate(Str::lower($this->input('email')) . '|' . $this->ip());
+    }
+}
