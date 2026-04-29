@@ -71,7 +71,7 @@
                 </div>
                 <div class="flex flex-col gap-3">
                     <h3 class="text-4xl font-semibold text-gray-900">
-                        {{ env('APP_NAME', 'Dashboard') }}
+                        {{ config('app.name', 'Corsec App') }}
                     </h3>
                     <div class="text-lg font-medium text-gray-600">
                         A robust authentication
@@ -83,7 +83,7 @@
                         <br />
                         secure efficient user access to the
                         <span class="font-semibold text-gray-900">
-                            {{ env('APP_NAME', 'Dashboard') }}
+                            {{ config('app.name', 'Corsec App') }}
                         </span>
                         <br />
                         Dashboard interface.
