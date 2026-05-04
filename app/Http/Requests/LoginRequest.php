@@ -56,6 +56,11 @@ class LoginRequest extends FormRequest
         } else {
             if (!Auth::attempt($authData, $this->boolean('remember'))) {
                 RateLimiter::hit($this->throttleKey());
+
+                if (RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+                    $this->throwLockoutValidationException();
+                }
+
                 $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
                 $user = User::where($loginField, $credentials['login'])->first();
 
@@ -67,6 +72,17 @@ class LoginRequest extends FormRequest
                 }
 
                 throw ValidationException::withMessages($messages);
+            }
+
+            $user = Auth::user();
+            if (!$user || !$user->roles()->exists()) {
+                Auth::guard('web')->logout();
+                $this->session()->invalidate();
+                $this->session()->regenerateToken();
+
+                throw ValidationException::withMessages([
+                    'login' => 'Akun belum memiliki role. Silakan hubungi administrator.',
+                ]);
             }
 
             RateLimiter::clear($this->throttleKey());
@@ -137,6 +153,11 @@ class LoginRequest extends FormRequest
 
         // Authentication failed
         RateLimiter::hit($this->throttleKey());
+
+        if (RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+            $this->throwLockoutValidationException();
+        }
+
         $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
         $user = User::where($loginField, $credentials['login'])->first();
 
@@ -165,13 +186,25 @@ class LoginRequest extends FormRequest
 
         event(new Lockout($this));
 
+        $this->throwLockoutValidationException();
+    }
+
+    /**
+     * Throw a visible validation error when login attempts are rate limited.
+     *
+     * @return void
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function throwLockoutValidationException(): void
+    {
         $seconds = RateLimiter::availableIn($this->throttleKey());
+        $retryAfter = $seconds < 60
+            ? $seconds . ' detik'
+            : ceil($seconds / 60) . ' menit';
 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
+            'login' => "Akun diblokir sementara karena 5 kali salah login. Silakan coba lagi dalam {$retryAfter}.",
         ]);
     }
 
@@ -182,6 +215,6 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->input('email')) . '|' . $this->ip());
+        return Str::transliterate(Str::lower($this->input('login', '')) . '|' . $this->ip());
     }
 }
