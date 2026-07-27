@@ -51,7 +51,7 @@ class LoginRequest extends FormRequest
             'password'  => $credentials['password'],
         ];
 
-        if (env('METHOD_AUTH') == 'uim') {
+        if ($_ENV['METHOD_AUTH'] == 'uim') {
             $this->userIdManagemeent($credentials);
         } else {
             if (!Auth::attempt($authData, $this->boolean('remember'))) {
