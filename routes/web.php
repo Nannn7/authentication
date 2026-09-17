@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Authentication\Http\Controllers\AuthenticationController;
+use Modules\Authentication\Http\Controllers\ForcePasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,4 +22,6 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('logout', [AuthenticationController::class, 'destroy'])->name('logout');
+    Route::get('password/force-reset', [ForcePasswordResetController::class, 'edit'])->name('password.force_reset');
+    Route::post('password/force-reset', [ForcePasswordResetController::class, 'update'])->name('password.force_reset.update');
 });

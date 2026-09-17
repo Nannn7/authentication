@@ -13,6 +13,8 @@ use Modules\Usermanagement\Models\User;
 
 class LoginRequest extends FormRequest
 {
+    private const IP_MAX_ATTEMPTS = 20;
+    private const IP_DECAY_SECONDS = 60;
     /**
      * Returns an array of validation rules for the login form.
      *
@@ -56,22 +58,17 @@ class LoginRequest extends FormRequest
         } else {
             if (!Auth::attempt($authData, $this->boolean('remember'))) {
                 RateLimiter::hit($this->throttleKey());
+                RateLimiter::hit($this->ipthrottleKey(), self::IP_DECAY_SECONDS);
 
                 if (RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
                     $this->throwLockoutValidationException();
                 }
 
-                $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
-                $user = User::where($loginField, $credentials['login'])->first();
-
-                $messages = [];
-                if ($user) {
-                    $messages['password'] = 'Password tidak sesuai';
-                } else {
-                    $messages['login'] = 'Email/NIK tidak ditemukan';
+                if (RateLimiter::tooManyAttempts($this->ipThrottleKey(), self::IP_MAX_ATTEMPTS)) {
+                    $this->throwLockoutValidationException();
                 }
 
-                throw ValidationException::withMessages($messages);
+                $this->throwInvalidCredentialsException();
             }
 
             $user = Auth::user();
@@ -86,6 +83,7 @@ class LoginRequest extends FormRequest
             }
 
             RateLimiter::clear($this->throttleKey());
+            RateLimiter::clear($this->ipThrottleKey());
         }
     }
 
@@ -153,22 +151,17 @@ class LoginRequest extends FormRequest
 
         // Authentication failed
         RateLimiter::hit($this->throttleKey());
+        RateLimiter::hit($this->ipThrottleKey(), self::IP_DECAY_SECONDS);
 
         if (RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             $this->throwLockoutValidationException();
         }
 
-        $loginField = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'nik';
-        $user = User::where($loginField, $credentials['login'])->first();
-
-        $messages = [];
-        if ($user) {
-            $messages['password'] = 'Password tidak sesuai';
-        } else {
-            $messages['login'] = 'Email/NIK tidak ditemukan';
+        if (RateLimiter::tooManyAttempts($this->ipThrottleKey(), self::IP_MAX_ATTEMPTS)) {
+            $this->throwLockoutValidationException();
         }
 
-        throw ValidationException::withMessages($messages);
+        $this->throwInvalidCredentialsException();
     }
 
     /**
@@ -180,13 +173,16 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-            return;
+        if (RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+            event(new Lockout($this));
+            $this->throwLockoutValidationException($this->throttleKey());
         }
 
-        event(new Lockout($this));
+        if (RateLimiter::tooManyAttempts($this->ipThrottleKey(), self::IP_MAX_ATTEMPTS)) {
+            event(new Lockout($this));
 
-        $this->throwLockoutValidationException();
+            $this->throwLockoutValidationException($this->ipThrottleKey());
+        }
     }
 
     /**
@@ -196,15 +192,22 @@ class LoginRequest extends FormRequest
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    protected function throwLockoutValidationException(): void
+    protected function throwLockoutValidationException(?string $key = null): void
     {
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($key ?? $this->throttleKey());
         $retryAfter = $seconds < 60
             ? $seconds . ' detik'
             : ceil($seconds / 60) . ' menit';
 
         throw ValidationException::withMessages([
-            'login' => "Akun diblokir sementara karena 5 kali salah login. Silakan coba lagi dalam {$retryAfter}.",
+            'login' => "Akun diblokir sementara karena terlalu banyak percobaan login. Silakan coba lagi dalam {$retryAfter}.",
+        ]);
+    }
+
+    protected function throwInvalidCredentialsException(): void
+    {
+        throw ValidationException::withMessages([
+            'login' => 'Email/NIK atau Password tidak sesuai.',
         ]);
     }
 
@@ -216,5 +219,15 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->input('login', '')) . '|' . $this->ip());
+    }
+
+    /**
+     * Get the rate limiting throttle key for the request.
+     *
+     * @return string
+     */
+    public function ipThrottleKey(): string
+    {
+        return 'login-ip:' . $this->ip();
     }
 }
